@@ -1,17 +1,3 @@
-import tensorflow as tf
-import numpy as np
-
-from tensorflow import keras
-from tensorflow.keras import layers
-from tensorflow.keras.utils import to_categorical
-from tensorflow.keras.datasets import cifar10
-
-(x_train, y_train), (x_test, y_test) = cifar10.load_data()
-x_train = x_train / 255
-x_test = x_test / 255
-y_cat_train = to_categorical(y_train, 10)
-y_cat_test = to_categorical(y_test, 10)
-
 class ResNet():
   def __init__(self, lay_n):
     self.lay_n = lay_n
@@ -31,51 +17,43 @@ class ResNet():
 
   def res_block(self, inputs, fl_num, k_size):
 
-    x = layers.BatchNormalization()(inputs, True)
-    x = layers.ReLU()(x)
-    
-    x = layers.Conv2D(fl_num, k_size, padding="same")(x)
-    x = layers.BatchNormalization()(x, True)
+    x_init = layers.Conv2D(fl_num, k_size, padding="same")(inputs)
+    x = layers.BatchNormalization()(x_init, True)
     x = layers.ReLU()(x)
 
     x = layers.Conv2D(fl_num, k_size, padding="same")(x)
-    x = layers.Add()([x, inputs])
+    x = layers.Add()([x, x_init])
+    x = layers.BatchNormalization()(x, True)
+    x = layers.ReLU()(x)
 
     return x
 
   def bottle_res_block(self, inputs, fl_num, k_size):
 
-    x = layers.BatchNormalization()(inputs, True)
-    x = layers.ReLU()(x)
-    
-    x = layers.Conv2D(fl_num, k_size, padding="same")(x)
-    x = layers.BatchNormalization()(x, True)
+    x_init = layers.Conv2D(fl_num, k_size, padding="same")(inputs)
+    x = layers.BatchNormalization()(x_init, True)
     x = layers.ReLU()(x)
 
     x = layers.Conv2D(fl_num, k_size, padding="same")(x)
-    x = layers.Add()([x, inputs])
+    x = layers.Add()([x, x_init])
+    x = layers.BatchNormalization()(x, True)
+    x = layers.ReLU()(x)
 
     return x
     
   def create_model(self):
 
     inputs = keras.Input(shape=(32,32,3))
-    x = layers.Conv2D(self.fl_n * 1, 3, padding="same")(inputs)
+    x = inputs
 
     for i in range(self.lay_n_arr[0]):
       x = self.res_block(x, self.fl_n * 1, 3)
 
-    x = layers.Conv2D(self.fl_n * 2, 3, padding="same")(x)
-    
     for i in range(self.lay_n_arr[1]):
       x = self.res_block(x, self.fl_n * 2, 3)
 
-    x = layers.Conv2D(self.fl_n * 4, 3, padding="same")(x)
-
     for i in range(self.lay_n_arr[2]):
       x = self.res_block(x, self.fl_n * 4, 3)
-
-    x = layers.Conv2D(self.fl_n * 8, 3, padding="same")(x)
 
     for i in range(self.lay_n_arr[3]):
       x = self.res_block(x, self.fl_n * 8, 3)
@@ -94,7 +72,12 @@ class ResNet():
                   optimizer=keras.optimizers.Adam(),
                   metrics=[keras.metrics.Accuracy()])
     
-    model.fit(x_train, y_cat_train, batch_size=100, epochs=15, validation_data=(x_test, y_cat_test))
+    model.fit(x_train,
+              y_cat_train, 
+              batch_size=100, 
+              epochs=15, 
+              validation_data=(x_test, y_cat_test))
 
     return
     
+   
